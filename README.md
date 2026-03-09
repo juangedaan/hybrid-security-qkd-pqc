@@ -1,37 +1,29 @@
-# Hybrid Security: QKD + PQC 🔐⚛️
+# Hybrid Security Demo
 
-This project demonstrates a simulated hybrid encryption model using:
-- Quantum Key Distribution (QKD) for physical link simulation
-- Post-Quantum Cryptography (PQC) for endpoint security
+A minimal script that simulates hybrid encryption by combining two random keys and encrypting a message with AES.
 
-## 🧠 Concept
+```mermaid
+flowchart LR
+    A[Random Key A] & B[Random Key B] --> Combine[Combine Keys]
+    Combine --> Encrypt[Encrypt Message]
+    Encrypt --> Decrypt[Decrypt Message]
+```
 
-1. QKD is simulated to exchange raw entropy keys securely (used as part of key material).
-2. PQC (Kyber-style) is simulated to derive a secure shared key.
-3. A hybrid key is generated using both QKD and PQC results.
-4. AES is used to encrypt and decrypt messages using the hybrid key.
+## 📂 Structure
 
-## 📁 Structure
-
-- `src/qkd.py` – Simulates QKD key agreement
-- `src/pqc.py` – Simulates PQC key exchange (Kyber-style)
-- `src/hybrid_encrypt.py` – Hybrid encryption/decryption logic
-- `architecture.png` – Visual overview of the hybrid encryption system
-
-## 🔧 Requirements
-
-```bash
-pip install pycryptodome
+```
+hybrid-security-qkd-pqc/
+├── README.md
+├── requirements.txt
+└── hybrid.py
 ```
 
 ## 🚀 Usage
 
 ```bash
-python src/hybrid_encrypt.py
+python hybrid.py
 ```
 
-This will simulate key generation, hybrid encryption, and message decryption.
+## 📜 License
 
-## 📊 Architecture
-
-![Architecture](architecture.png)
+MIT License
