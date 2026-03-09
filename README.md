@@ -1,18 +1,29 @@
-# Hybrid Security Demo
+# Hybrid Security QKD + PQC Demo
 
-A minimal Python script that walks through a **hybrid key agreement** flow. It
-- simulates **QKD** by generating a fresh random symmetric key,
-- simulates a **post‑quantum key exchange** step by encrypting a session key with an RSA key pair (standing in for a lattice-based KEM),
-- XORs the two derived secrets to produce a final hybrid key,
-- then uses the hybrid key for an AES‑EAX encrypt/decrypt of a sample message.
-
-The code is intentionally simple but illustrates how multiple primitives might be combined in a post‑quantum aware protocol.
+A comprehensive simulation of hybrid quantum-safe cryptography combining Quantum Key Distribution (QKD) with Post-Quantum Cryptography (PQC). The script demonstrates a complete key exchange protocol with RSA-KEM, ECC signatures, and AES encryption.
 
 ```mermaid
-flowchart LR
-    A[Random Key A] & B[Random Key B] --> Combine[Combine Keys]
-    Combine --> Encrypt[Encrypt Message]
-    Encrypt --> Decrypt[Decrypt Message]
+flowchart TD
+    Start[Start Protocol] --> QKD[Quantum Key Distribution]
+    Start --> PQC[Post-Quantum Crypto]
+
+    QKD --> GenerateQKD[Generate QKD Key]
+    PQC --> RSA_KEM[RSA Key Encapsulation]
+    PQC --> ECC_Sign[ECC Digital Signature]
+
+    GenerateQKD --> CombineKeys[HKDF Key Derivation]
+    RSA_KEM --> CombineKeys
+
+    CombineKeys --> HybridKey[Hybrid Symmetric Key]
+    HybridKey --> AESEncrypt[AES-EAX Encryption]
+
+    AESEncrypt --> MessageEncrypted[Message Secured]
+    ECC_Sign --> Signature[Protocol Signature]
+
+    MessageEncrypted --> Verify[Verify & Decrypt]
+    Signature --> Verify
+
+    Verify --> End[Secure Communication]
 ```
 
 ## 📂 Structure
@@ -21,7 +32,7 @@ flowchart LR
 hybrid-security-qkd-pqc/
 ├── README.md
 ├── requirements.txt
-└── hybrid.py
+├── hybrid.py  # Full hybrid protocol simulation with classes and crypto
 ```
 
 ## 🚀 Usage
@@ -29,6 +40,15 @@ hybrid-security-qkd-pqc/
 ```bash
 python hybrid.py
 ```
+
+Runs the complete hybrid key exchange and demonstrates secure message encryption/decryption.
+
+## 🏗️ Protocol Phases
+
+- **QKD Phase**: Simulates quantum-secure key generation
+- **PQC Phase**: RSA-KEM for key encapsulation + ECC for signatures
+- **Hybrid Phase**: Combines keys using HKDF-like derivation
+- **Encryption Phase**: AES-EAX symmetric encryption with hybrid key
 
 ## 📜 License
 
