@@ -6,7 +6,7 @@ from Crypto.Random import get_random_bytes
 
 
 def combine_keys(key1: bytes, key2: bytes) -> bytes:
-    # simple XOR combine
+    # simple XOR combine (bitwise)
     return bytes(a ^ b for a, b in zip(key1, key2))
 
 
@@ -25,12 +25,25 @@ def decrypt(encrypted: bytes, key: bytes) -> bytes:
 
 
 if __name__ == "__main__":
-    # simulate QKD and PQC key material
-    key_a = get_random_bytes(16)
-    key_b = get_random_bytes(16)
-    hybrid_key = combine_keys(key_a, key_b)
+    # simulate QKD by generating a random symmetric key
+    key_qkd = get_random_bytes(16)
+    print(f"QKD key: {key_qkd.hex()}")
+
+    # simulate a PQC step using an RSA key pair (placeholder for lattice/KEM)
+    from Crypto.PublicKey import RSA
+
+    rsa_key = RSA.generate(2048)
+    # encrypt a random session key with the RSA public key
+    session_key = get_random_bytes(16)
+    encrypted_session = rsa_key.publickey().encrypt(session_key, None)[0]
+    decrypted_session = rsa_key.decrypt(encrypted_session)
+    print(f"PQC-derived key: {decrypted_session.hex()}")
+
+    # combine the QKD and PQC keys to form a hybrid key
+    hybrid_key = combine_keys(key_qkd, decrypted_session)
     print(f"Hybrid key: {hybrid_key.hex()}")
 
+    # use the hybrid key for symmetric AES encryption
     message = b"Secret message"
     encrypted = encrypt(message, hybrid_key)
     print(f"Encrypted: {encrypted.hex()}")
