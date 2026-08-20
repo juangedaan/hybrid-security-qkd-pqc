@@ -3,27 +3,33 @@
 A comprehensive simulation of hybrid quantum-safe cryptography combining Quantum Key Distribution (QKD) with Post-Quantum Cryptography (PQC). The script demonstrates a complete key exchange protocol with ML-KEM-768 (Kyber) key encapsulation, ML-DSA-65 (Dilithium) signatures, and AES encryption.
 
 ```mermaid
-flowchart TD
-    Start[Start Protocol] --> QKD[Quantum Key Distribution]
-    Start --> PQC[Post-Quantum Crypto]
+sequenceDiagram
+    participant Alice
+    participant Bob
 
-    QKD --> GenerateQKD[BB84 Sifted Key]
-    PQC --> ML_KEM[ML-KEM-768 Key Encapsulation]
-    PQC --> ML_DSA_Sign[ML-DSA-65 Digital Signature]
+    Note over Alice,Bob: Phase 1 - QKD (BB84 simulation)
+    Alice->>Bob: Qubits in random bases (rectilinear/diagonal)
+    Bob->>Alice: Measurement bases used
+    Note over Alice,Bob: Sift bits where bases match -> shared 256-bit QKD key
 
-    GenerateQKD --> CombineKeys[HKDF Key Derivation]
-    ML_KEM --> CombineKeys
+    Note over Alice,Bob: Phase 2 - PQC key encapsulation
+    Bob->>Alice: ML-KEM-768 public key
+    Note over Alice: Encapsulate -> KEM secret + ciphertext
+    Alice->>Bob: KEM ciphertext
+    Note over Bob: Decapsulate -> same KEM secret
 
-    CombineKeys --> HybridKey[Hybrid Symmetric Key]
-    HybridKey --> AESEncrypt[AES-EAX Encryption]
+    Note over Alice,Bob: Phase 3 - Hybrid key derivation
+    Note over Alice: hybrid key = HKDF(QKD key, KEM secret)
+    Note over Bob: hybrid key = HKDF(QKD key, KEM secret)
+    Note over Alice,Bob: Both parties hold the same hybrid key
 
-    AESEncrypt --> MessageEncrypted[Message Secured]
-    ML_DSA_Sign --> Signature[Protocol Signature]
+    Note over Alice,Bob: Phase 4 - Authentication
+    Bob->>Alice: ML-DSA-65 signature over hybrid key + public key
+    Note over Alice: Verify signature
 
-    MessageEncrypted --> Verify[Verify & Decrypt]
-    Signature --> Verify
-
-    Verify --> End[Secure Communication]
+    Note over Alice,Bob: Phase 5 - Secure messaging
+    Alice->>Bob: Message encrypted with AES-EAX under hybrid key
+    Note over Bob: Decrypt and verify tag
 ```
 
 ## 📂 Structure
