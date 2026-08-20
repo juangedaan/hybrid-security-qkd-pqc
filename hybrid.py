@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 
 import secrets
-from Crypto.Cipher import AES, PKCS1_OAEP
-from Crypto.Random import get_random_bytes
-from Crypto.PublicKey import RSA, ECC
-from Crypto.Hash import SHA256
-from Crypto.Signature import DSS
-import time
 from dataclasses import dataclass
-from typing import Tuple
+
+from Crypto.Cipher import AES
+from Crypto.Hash import SHA256
+from kyber_py.ml_kem import ML_KEM_768
+from dilithium_py.ml_dsa import ML_DSA_65
 
 @dataclass
 class KeyExchangeResult:
@@ -42,38 +40,29 @@ class QuantumKeyDistribution:
         return key
 
 class PostQuantumCryptography:
-    """Simulate PQC primitives"""
+    """NIST post-quantum primitives: ML-KEM-768 (Kyber) and ML-DSA-65 (Dilithium)"""
     def __init__(self):
-        self.rsa_key = RSA.generate(2048)
-        self.ecc_key = ECC.generate(curve='P-256')
+        self.kem_ek, self.kem_dk = ML_KEM_768.keygen()
+        self.sig_pk, self.sig_sk = ML_DSA_65.keygen()
 
-    def rsa_kem(self, message: bytes) -> Tuple[bytes, bytes]:
-        """RSA-based Key Encapsulation Mechanism simulation"""
-        print("🔐 PQC: RSA-KEM key encapsulation...")
-        cipher = PKCS1_OAEP.new(self.rsa_key.publickey())
-        return cipher.encrypt(message), self.rsa_key.publickey().export_key()
+    @staticmethod
+    def kem_encaps(ek: bytes) -> tuple:
+        """Encapsulate against the receiver's public key -> (shared secret, ciphertext)"""
+        print("🔐 PQC: ML-KEM-768 key encapsulation...")
+        return ML_KEM_768.encaps(ek)
 
-    def rsa_kem_decrypt(self, encrypted: bytes) -> bytes:
-        """Decrypt RSA-KEM"""
-        return PKCS1_OAEP.new(self.rsa_key).decrypt(encrypted)
+    def kem_decaps(self, ciphertext: bytes) -> bytes:
+        """Recover the shared secret with the private key"""
+        return ML_KEM_768.decaps(self.kem_dk, ciphertext)
 
-    def ecc_sign(self, data: bytes) -> bytes:
-        """ECC digital signature"""
-        print("✍️ PQC: ECC digital signature...")
-        h = SHA256.new(data)
-        signer = DSS.new(self.ecc_key, 'fips-186-3')
-        signature = signer.sign(h)
-        return signature
+    def sign(self, data: bytes) -> bytes:
+        """ML-DSA-65 digital signature"""
+        print("✍️ PQC: ML-DSA-65 digital signature...")
+        return ML_DSA_65.sign(self.sig_sk, data)
 
-    def ecc_verify(self, data: bytes, signature: bytes, pub_key) -> bool:
-        """Verify ECC signature"""
-        h = SHA256.new(data)
-        verifier = DSS.new(pub_key, 'fips-186-3')
-        try:
-            verifier.verify(h, signature)
-            return True
-        except:
-            return False
+    @staticmethod
+    def verify(data: bytes, signature: bytes, pub_key: bytes) -> bool:
+        return ML_DSA_65.verify(pub_key, data, signature)
 
 def combine_keys(key1: bytes, key2: bytes) -> bytes:
     """HKDF-like key derivation: hash both keys so all entropy is used"""
@@ -94,29 +83,29 @@ def decrypt(encrypted: bytes, key: bytes) -> bytes:
 def simulate_hybrid_protocol() -> KeyExchangeResult:
     print("🚀 Starting Hybrid QKD + PQC Protocol Simulation\n")
 
-    # Phase 1: QKD
-    qkd = QuantumKeyDistribution()
-    qkd_key = qkd.generate_key()
+    # Phase 1: QKD — Alice and Bob agree on a quantum key via BB84
+    qkd_key = QuantumKeyDistribution().generate_key()
 
-    # Phase 2: PQC Key Exchange
-    pqc = PostQuantumCryptography()
-    session_key = get_random_bytes(16)
-    encrypted_session, pub_key = pqc.rsa_kem(session_key)
-    decrypted_session = pqc.rsa_kem_decrypt(encrypted_session)
+    # Phase 2: PQC KEM — Alice encapsulates against Bob's ML-KEM public key
+    bob = PostQuantumCryptography()
+    alice_secret, ciphertext = PostQuantumCryptography.kem_encaps(bob.kem_ek)
+    bob_secret = bob.kem_decaps(ciphertext)
 
-    # Phase 3: Combine keys
-    hybrid_key = combine_keys(qkd_key, decrypted_session)
-    print(f"Hybrid key: {hybrid_key.hex()}")
+    # Phase 3: Both parties derive the hybrid key independently
+    alice_key = combine_keys(qkd_key, alice_secret)
+    bob_key = combine_keys(qkd_key, bob_secret)
+    assert alice_key == bob_key, "Hybrid key mismatch!"
+    print(f"Hybrid key (both parties agree): {alice_key.hex()}")
 
-    # Phase 4: Sign the hybrid key, then verify
-    signature = pqc.ecc_sign(hybrid_key)
-    assert pqc.ecc_verify(hybrid_key, signature, pqc.ecc_key.public_key())
+    # Phase 4: Sign the hybrid key transcript, then verify
+    signature = bob.sign(alice_key)
+    assert PostQuantumCryptography.verify(alice_key, signature, bob.sig_pk)
     print("   Signature verified ✔")
 
     return KeyExchangeResult(
-        shared_secret=hybrid_key,
-        public_key=pub_key,
-        signature=signature
+        shared_secret=alice_key,
+        public_key=bob.kem_ek,
+        signature=signature,
     )
 
 if __name__ == "__main__":

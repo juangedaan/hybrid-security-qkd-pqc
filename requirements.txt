@@ -1,1 +1,3 @@
 pycryptodome
+kyber-py
+dilithium-py
