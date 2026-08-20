@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-import os
-from Crypto.Cipher import AES
+import secrets
+from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 from Crypto.PublicKey import RSA, ECC
 from Crypto.Hash import SHA256
@@ -17,15 +17,28 @@ class KeyExchangeResult:
     signature: bytes = None
 
 class QuantumKeyDistribution:
-    """Simulate QKD protocol (BB84-like)"""
+    """Simulate the BB84 QKD protocol over an ideal (noise-free) quantum channel."""
     def __init__(self):
         self.key_length = 256
 
     def generate_key(self) -> bytes:
-        # Simulate quantum key generation
-        print("🔑 Simulating QKD: Generating quantum-secure key...")
-        key = get_random_bytes(self.key_length // 8)
-        print(f"   Key length: {len(key)*8} bits")
+        print("🔑 Simulating QKD (BB84): Alice sends qubits, Bob measures...")
+        sifted_bits = []
+        qubits_sent = 0
+        while len(sifted_bits) < self.key_length:
+            alice_bit = secrets.randbits(1)
+            alice_basis = secrets.randbits(1)   # 0 = rectilinear, 1 = diagonal
+            bob_basis = secrets.randbits(1)
+            qubits_sent += 1
+            # Sifting: keep the bit only when Bob measured in Alice's basis.
+            # Ideal channel and no eavesdropper, so Bob reads the bit correctly.
+            if alice_basis == bob_basis:
+                sifted_bits.append(alice_bit)
+        key = bytes(
+            int("".join(map(str, sifted_bits[i:i + 8])), 2)
+            for i in range(0, self.key_length, 8)
+        )
+        print(f"   Qubits sent: {qubits_sent}, sifted key: {len(key)*8} bits")
         return key
 
 class PostQuantumCryptography:
@@ -37,13 +50,12 @@ class PostQuantumCryptography:
     def rsa_kem(self, message: bytes) -> Tuple[bytes, bytes]:
         """RSA-based Key Encapsulation Mechanism simulation"""
         print("🔐 PQC: RSA-KEM key encapsulation...")
-        # Encrypt message with RSA public key
-        encrypted = self.rsa_key.publickey().encrypt(message, None)[0]
-        return encrypted, self.rsa_key.publickey().export_key()
+        cipher = PKCS1_OAEP.new(self.rsa_key.publickey())
+        return cipher.encrypt(message), self.rsa_key.publickey().export_key()
 
     def rsa_kem_decrypt(self, encrypted: bytes) -> bytes:
         """Decrypt RSA-KEM"""
-        return self.rsa_key.decrypt(encrypted)
+        return PKCS1_OAEP.new(self.rsa_key).decrypt(encrypted)
 
     def ecc_sign(self, data: bytes) -> bytes:
         """ECC digital signature"""
@@ -64,12 +76,8 @@ class PostQuantumCryptography:
             return False
 
 def combine_keys(key1: bytes, key2: bytes) -> bytes:
-    """HKDF-like key derivation"""
-    combined = bytes(a ^ b for a, b in zip(key1, key2))
-    # Simple hash for derivation
-    from Crypto.Hash import SHA256
-    h = SHA256.new(combined)
-    return h.digest()[:16]  # 128-bit key
+    """HKDF-like key derivation: hash both keys so all entropy is used"""
+    return SHA256.new(key1 + key2).digest()[:16]  # 128-bit key
 
 def encrypt(message: bytes, key: bytes) -> bytes:
     cipher = AES.new(key, AES.MODE_EAX)
@@ -100,8 +108,10 @@ def simulate_hybrid_protocol() -> KeyExchangeResult:
     hybrid_key = combine_keys(qkd_key, decrypted_session)
     print(f"Hybrid key: {hybrid_key.hex()}")
 
-    # Phase 4: Sign the hybrid key
+    # Phase 4: Sign the hybrid key, then verify
     signature = pqc.ecc_sign(hybrid_key)
+    assert pqc.ecc_verify(hybrid_key, signature, pqc.ecc_key.public_key())
+    print("   Signature verified ✔")
 
     return KeyExchangeResult(
         shared_secret=hybrid_key,
