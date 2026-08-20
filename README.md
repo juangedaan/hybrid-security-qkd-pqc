@@ -24,7 +24,7 @@ sequenceDiagram
     Note over Alice,Bob: Both parties hold the same hybrid key
 
     Note over Alice,Bob: Phase 4 - Authentication
-    Bob->>Alice: ML-DSA-65 signature over hybrid key + public key
+    Bob->>Alice: ML-DSA-65 signature over hybrid key, plus signing public key
     Note over Alice: Verify signature
 
     Note over Alice,Bob: Phase 5 - Secure messaging
